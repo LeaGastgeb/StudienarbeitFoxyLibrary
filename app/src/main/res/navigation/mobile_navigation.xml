@@ -12,10 +12,10 @@
         tools:layout="@layout/fragment_home" />
 
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.studienarbeitfoxylibrary.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        android:id="@+id/navigation_barcode"
+        android:name="com.example.studienarbeitfoxylibrary.ui.barcode.BarcodeFragment"
+        android:label="@string/title_barcode"
+        tools:layout="@layout/fragment_barcode" />
 
     <fragment
         android:id="@+id/navigation_notifications"

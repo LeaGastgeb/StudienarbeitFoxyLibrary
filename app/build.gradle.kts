@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.testapp"
+    namespace = "com.example.studienarbeitfoxylibrary"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.testapp"
+        applicationId = "com.example.studienarbeitfoxylibrary"
         minSdk = 24
         targetSdk = 33
         versionCode = 1
@@ -55,6 +55,9 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
     implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.0")
 
+
+    //ISBN API
+    implementation("com.github.kittinunf.fuel:fuel:2.3.1")
 
     //Tests
     testImplementation("junit:junit:4.13.2")
