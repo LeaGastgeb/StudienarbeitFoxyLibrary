@@ -24,8 +24,20 @@ import com.example.studienarbeitfoxylibrary.databinding.FragmentBarcodeBinding
 import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import androidx.core.app.ActivityCompat
+import com.example.studienarbeitfoxylibrary.ui.barcode.BarcodeFragment.Companion.TAG
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import com.github.kittinunf.fuel.httpGet
+import kotlinx.coroutines.withContext
+import org.w3c.dom.Element
+import org.xml.sax.InputSource
+import java.io.StringReader
+import javax.xml.parsers.DocumentBuilderFactory
 
 
 class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
@@ -42,6 +54,9 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
     private lateinit var imageIv: ImageView
     private lateinit var scanBtn: MaterialButton
     private lateinit var resultTv: TextView
+    private lateinit var bookInfo: TextView
+
+    private lateinit var barcodeViewModel: BarcodeViewModel
 
     companion object{
         // to handle the result of Camera and Gallery permission in onRequestPermissionsResults
@@ -81,13 +96,26 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
         _binding = FragmentBarcodeBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
+        barcodeViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().application))
+            .get(BarcodeViewModel::class.java)
+
         // Initialize your UI views using the binding object
         cameraBtn = binding.cameraBtn
         galleryBtn = binding.galleryBtn
         imageIv = binding.imageIv
         scanBtn = binding.scanBtn
         resultTv = binding.resultTv
+        bookInfo = binding.bookInfo
 
+
+        barcodeScannerOptions = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13
+                // Barcode.FORMAT_ALL_FORMATS
+            )
+            .build()
+
+        barcodeScanner = BarcodeScanning.getClient(barcodeScannerOptions!!)
 
         // handle cameraBtn click, check permissions related to Camera (i.e. Camera and Write Storage) and take image from Camera
         cameraBtn.setOnClickListener{
@@ -98,7 +126,6 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
             }else{
                 // permissions not granted, request permissions
                 requestCameraPermission()
-                requestStoragePermission()
             }
         }
 
@@ -112,6 +139,7 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
                 // permissions not granted, request permissions
                 requestStoragePermission()
             }
+            pickImageGallery()
         }
 
         // handle scanBtn click, scan the Barcode/QR code from image picked from Camera or Gallery
@@ -149,6 +177,7 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
         }
     }
 
+
     private fun extractBarcodeQrCodeInfo(barcodes: List<Barcode>) {
         for (barcode in barcodes) {
             val bounds = barcode.boundingBox
@@ -161,7 +190,11 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
                 Barcode.TYPE_ISBN -> {
                     val isbn = barcode.rawValue
                     val isbnType = barcode.valueType
-                    resultTv.text = "Type: $isbnType, Value: $isbn, rawValue: $rawValue"
+                    resultTv.text = "ISBN: $isbn"
+                    if (isbn != null) {
+                        fetchBookInfo(isbn)
+                    }
+
                 }
                 else -> {
                     resultTv.text = "Type: $valueType, rawValue: $rawValue"
@@ -169,6 +202,47 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
             }
         }
     }
+
+
+    private fun fetchBookInfo(isbn: String) {
+        // Use GlobalScope.launch for simplicity (not recommended for production)
+        GlobalScope.launch(Dispatchers.Main) {
+            try {
+                // Create ISBN instance and fetch book info
+                val bookInfo = ISBN(isbn).fetchBookInfoFromDNB()
+
+                // Handle the book info, update UI, etc.
+                Log.d(TAG, "Book Info: $bookInfo")
+
+                if (bookInfo != null) {
+                    barcodeViewModel.insert(
+                        isbn = isbn,
+                        title = bookInfo.title,
+                        author = bookInfo.author,
+                        publisher = bookInfo.publisher,
+                        publicationDate = bookInfo.releaseDate,
+                        pageCount = bookInfo.pageCount,
+                        price = bookInfo.priceInfo,
+                        genre = "",
+                        language = bookInfo.language,
+                        signature = "",
+                        borrowed = "",
+                        borrowedTo = "",
+                        borrowedOn = "",
+                        borrowedUntil = "",
+                        rating = "",
+                        comment = "",
+                        cover = ""
+                    )
+                }
+
+            } catch (e: Exception) {
+                // Handle exceptions, log, show error, etc.
+                Log.e(TAG, "Error fetching book information: ${e.message}", e)
+            }
+        }
+    }
+
 
     private fun pickImageGallery() {
         // intent to pick image from Gallery
@@ -234,9 +308,10 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
 
 
     private fun requestStoragePermission() {
-        requestPermissions(
+        ActivityCompat.requestPermissions(
+            requireActivity(),
             arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-            BarcodeFragment.STORAGE_REQUEST_CODE
+            STORAGE_REQUEST_CODE
         )
     }
 
@@ -248,19 +323,16 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
             Manifest.permission.CAMERA
         ) == PackageManager.PERMISSION_GRANTED)
 
-        // check if storage permission is enabled or not
-        val resultStorage = (ContextCompat.checkSelfPermission(
-            requireContext(),
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED)
-
-        // return both results as true/false
-        return resultCamera && resultStorage
+        return resultCamera
     }
 
     private fun requestCameraPermission(){
         // request the camera permissions
-        requestPermissions(cameraPermission, BarcodeFragment.CAMERA_REQUEST_CODE)
+        ActivityCompat.requestPermissions(
+            requireActivity(),
+            cameraPermission,
+            CAMERA_REQUEST_CODE
+        )
     }
 
     override fun onRequestPermissionsResult(
@@ -272,7 +344,7 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // handle the permission results
         when(requestCode){
-            BarcodeFragment.CAMERA_REQUEST_CODE ->{
+            CAMERA_REQUEST_CODE ->{
                 // Check if some action from permission dialog performed or not Allow/Deny
                 if (grantResults.isNotEmpty()){
                     // Check if Camera, Storage permissions granted, contains boolean results either true or false
@@ -291,7 +363,7 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
 
                 }
             }
-            BarcodeFragment.STORAGE_REQUEST_CODE ->{
+            STORAGE_REQUEST_CODE ->{
                 // Check if storage permission is granted or not
                 if (grantResults.isNotEmpty()){
                     val storageAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED
@@ -317,5 +389,84 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+}
+
+
+class ISBN(private val isbn: String) {
+    data class BookInfo(
+        val title: String,
+        val author: String,
+        val edition: String,
+        val publisher: String,
+        val releaseDate: String,
+        val pageCount: String,
+        val priceInfo: String,
+        val isbn10: String,
+        val ean: String,
+        val language: String
+    )
+    suspend fun fetchBookInfoFromDNB(): BookInfo? = withContext(Dispatchers.IO) {
+        try {
+            // Construct the URL for the request
+            val url = "https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&query=$isbn"
+
+            // Make an HTTP GET request to the URL using Fuel
+            val (_, _, result) = url.httpGet().responseString()
+
+            // Extract the XML response
+            val xmlResponse = result.get()
+
+
+            // Parse the XML response using DOM
+            val documentBuilderFactory = DocumentBuilderFactory.newInstance()
+            val documentBuilder = documentBuilderFactory.newDocumentBuilder()
+            val inputSource = InputSource(StringReader(xmlResponse))
+            val document = documentBuilder.parse(inputSource)
+
+            // Normalize the document structure
+            document.documentElement.normalize()
+
+            // Get the list of records in the XML response
+            val recordList = document.getElementsByTagName("rdf:Description")
+
+            // Check if records are found
+            if (recordList.length > 0) {
+                val record = recordList.item(0) as Element
+
+                // Extract specific information from the record
+                val bookTitle = record.getElementsByTagName("dc:title").item(0).textContent
+                val author = record.getElementsByTagName("rdau:P60327").item(0).textContent
+                val edition = record.getElementsByTagName("bibo:edition").item(0).textContent
+                val publisher = record.getElementsByTagName("dc:publisher").item(0).textContent
+                val releaseDate = record.getElementsByTagName("dcterms:issued").item(0).textContent
+                val pageCount = record.getElementsByTagName("isbd:P1053").item(0).textContent
+                val priceInfo = record.getElementsByTagName("rdau:P60521").item(0).textContent
+                val isbn10 = record.getElementsByTagName("bibo:isbn10").item(0).textContent
+                val ean = record.getElementsByTagName("bibo:gtin14").item(0).textContent
+                val language = record.getElementsByTagName("dcterms:language").item(0).textContent
+
+                // Create and return BookInfo object
+                return@withContext ISBN.BookInfo(
+                    title = bookTitle,
+                    author = author,
+                    edition = edition,
+                    publisher = publisher,
+                    releaseDate = releaseDate,
+                    pageCount = pageCount,
+                    priceInfo = priceInfo,
+                    isbn10 = isbn10,
+                    ean = ean,
+                    language = language
+                )
+            } else {
+                // Handle case where no records are found
+                return@withContext null
+            }
+        } catch (e: Exception) {
+            // Handle exceptions, log, show error, etc.
+            Log.e(TAG, "Error fetching book information: ${e.message}", e)
+            return@withContext null
+        }
     }
 }
