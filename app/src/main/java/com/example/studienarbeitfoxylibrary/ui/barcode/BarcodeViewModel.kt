@@ -75,5 +75,14 @@ class BarcodeViewModel(application: Application) : AndroidViewModel(application)
         return books
     }
 
+    suspend fun getAllBooks(publisher: String): List<Book>? {
+        var books: List<Book>? = null
+        viewModelScope.launch {
+            books = repository.getAllBooks()
+        }
+        return books
+    }
+
+    fun getLiveBookList(): LiveData<List<Book>> = LiveBookList
 
 }

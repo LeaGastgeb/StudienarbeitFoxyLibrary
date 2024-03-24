@@ -234,7 +234,11 @@ class BarcodeFragment : Fragment(R.layout.fragment_barcode) {
                         comment = "",
                         cover = ""
                     )
+                    showToast("Book inserted successfully")
+                } else {
+                    showToast("Book info not found")
                 }
+
 
             } catch (e: Exception) {
                 // Handle exceptions, log, show error, etc.

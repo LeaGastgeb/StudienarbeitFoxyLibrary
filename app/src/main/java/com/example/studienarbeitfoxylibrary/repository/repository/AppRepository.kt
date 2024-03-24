@@ -1,9 +1,12 @@
 package com.example.studienarbeitfoxylibrary.repository.repository
 
 import android.app.Application
+import android.util.Log
+import androidx.lifecycle.LiveData
 import com.example.studienarbeitfoxylibrary.repository.database.Book
 import com.example.studienarbeitfoxylibrary.repository.database.BookDao
 import com.example.studienarbeitfoxylibrary.repository.database.BookDataBase
+import com.example.studienarbeitfoxylibrary.ui.barcode.BarcodeFragment.Companion.TAG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,7 +14,12 @@ class AppRepository(application: Application) {
     private val bookDao: BookDao
 
     init {
-        val db = BookDataBase.createInstance(application)
+        val db = BookDataBase.getInstance(application)
+        if (db.isOpen) {
+            Log.d(TAG, "AppRepository init: Database opened successfully")
+        } else {
+            Log.e(TAG, "AppRepository init: Database is closed")
+        }
         bookDao = db.bookDao
     }
 
@@ -82,7 +90,7 @@ class AppRepository(application: Application) {
         return books
     }
 
-    fun getLiveDataBooks() = bookDao.getLiveDataBookList()
+    fun getLiveDataBooks(): LiveData<List<Book>> = bookDao.getLiveDataBookList()
 
 
 }

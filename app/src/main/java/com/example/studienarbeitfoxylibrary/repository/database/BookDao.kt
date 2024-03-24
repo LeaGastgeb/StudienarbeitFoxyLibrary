@@ -11,30 +11,31 @@ import androidx.room.Update
 interface BookDao {
     @Insert
     fun insert(book: Book)
+
     @Delete
     fun delete(book: Book)
+
     @Update
     fun update(book: Book)
-    @Query("SELECT * FROM Book WHERE id = :bookId")
-    fun getBookById(bookId: Long): Book
-    @Query("SELECT * FROM Book")
+
+    @Query("SELECT DISTINCT * FROM Book WHERE id = :bookId")
+    fun getBookById(bookId: Long): Book?
+
+    @Query("SELECT DISTINCT * FROM Book")
     fun getBookList(): List<Book>
-    @Query("SELECT * FROM Book")
+
+    @Query("SELECT DISTINCT * FROM Book")
     fun getLiveDataBookList(): LiveData<List<Book>>
 
-    @Query("SELECT * FROM Book WHERE isbn = :isbn")
-    fun getBookByIsbn(isbn: String): Book
+    @Query("SELECT DISTINCT * FROM Book WHERE isbn = :isbn")
+    fun getBookByIsbn(isbn: String): Book?
 
-    @Query("SELECT * FROM Book WHERE title = :title")
-    fun getBookByTitle(title: String): List<Book>
+    @Query("SELECT DISTINCT * FROM Book WHERE title = :title")
+    fun getBookByTitle(title: String): List<Book>?
 
-    @Query("SELECT * FROM Book WHERE author = :author")
-    fun getBookByAuthor(author: String): List<Book>
+    @Query("SELECT DISTINCT * FROM Book WHERE author = :author")
+    fun getBookByAuthor(author: String): List<Book>?
 
-    @Query("SELECT * FROM Book WHERE publisher = :publisher")
-    fun getBookByPublisher(publisher: String): List<Book>
-
-
-
-
+    @Query("SELECT DISTINCT * FROM Book WHERE publisher = :publisher")
+    fun getBookByPublisher(publisher: String): List<Book>?
 }
